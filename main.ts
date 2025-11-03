@@ -1,4 +1,4 @@
-import { Effect, Console } from "effect";
+import { Effect, Console, Exit, Cause } from "effect";
 
 /**
  * A simple Effect program that adds two numbers
@@ -20,9 +20,17 @@ const program = Effect.gen(function* () {
 if (import.meta.main) {
   program.pipe(
     Effect.tap((result) => Console.log(`Program completed successfully with result: ${result}`)),
-    Effect.runPromise
-  ).catch((error) => {
-    console.error("Program failed:", error);
-    process.exit(1);
-  });
+    Effect.runPromiseExit
+  ).then(
+    Exit.match({
+      onFailure: (cause) => {
+        console.error("Program failed:");
+        console.error(Cause.pretty(cause));
+        process.exit(1);
+      },
+      onSuccess: () => {
+        // Program completed successfully, exit code 0 by default
+      },
+    })
+  );
 }
