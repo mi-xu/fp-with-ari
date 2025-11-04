@@ -61,9 +61,6 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager, never, ne
   Effect.gen(function* () {
     const index = yield* Ref.make<WorkspaceIndex>(new Map())
 
-    // Cached version of getIndex for performance
-    const cachedGetIndex = Ref.get(index).pipe(Effect.cached)
-
     /**
      * Rebuild the entire workspace index from scratch
      */
@@ -178,9 +175,9 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager, never, ne
       })
 
     /**
-     * Get current index (with caching for repeated reads)
+     * Get current index
      */
-    const getIndex = yield* cachedGetIndex
+    const getIndex = Ref.get(index)
 
     return {
       rebuildIndex,

@@ -148,10 +148,15 @@ const makeBatcher = (config: BatcherConfig): Effect.Effect<EventBatcher, never, 
     const events = Stream.fromQueue(eventQueue, { shutdown: true })
 
     /**
-     * Shutdown the batcher - interrupts the flusher fiber
+     * Shutdown the batcher - flushes pending updates and cleans up
      */
     const shutdown = Effect.gen(function* () {
+      // Flush any pending updates immediately
+      yield* flush
+      // Then interrupt the flusher fiber (which will also flush via ensuring)
       yield* Fiber.interrupt(flusherFiber)
+      // Give a moment for events to be consumed from the queue
+      yield* Effect.sleep(Duration.millis(10))
     })
 
     return {
