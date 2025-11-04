@@ -22,6 +22,9 @@ export const EdgeId = Brand.nominal<EdgeId>()
 export type UserId = string & Brand.Brand<"UserId">
 export const UserId = Brand.nominal<UserId>()
 
+// System user ID for internal operations (e.g., batched events)
+export const SYSTEM_USER_ID = UserId("system")
+
 export type WorkspaceId = string & Brand.Brand<"WorkspaceId">
 export const WorkspaceId = Brand.nominal<WorkspaceId>()
 

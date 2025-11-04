@@ -64,6 +64,7 @@ export {
   UserId,
   WorkspaceId,
   SequenceNumber,
+  SYSTEM_USER_ID,
   emptyState,
   makeEdgeId,
   getAffectedEntities,

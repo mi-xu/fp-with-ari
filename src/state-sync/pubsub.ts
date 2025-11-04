@@ -8,7 +8,7 @@ import type {
   SequenceNumber,
   Subscription,
 } from "./types"
-import { emptyState, getAffectedEntities, EntityId as EntityIdBrand } from "./types"
+import { emptyState, getAffectedEntities, SYSTEM_USER_ID } from "./types"
 import { applyEvent } from "./state"
 import type { EventBatcher } from "./batching"
 import type { SubscriptionManager } from "./subscription"
@@ -166,11 +166,8 @@ export const make = (
     // Start background fiber to publish batched events
     const batchPublisher = Stream.runForEach(batchedEventsStream, event =>
       Effect.gen(function* () {
-        // Batched events don't have a specific userId context
-        // In practice, they should be tagged with userId when scheduled
-        // For now, we'll use a placeholder - this should be improved
-        const userId = EntityIdBrand("system") as unknown as UserId
-        yield* publishEvent(userId, event)
+        // Batched events are published with system user ID
+        yield* publishEvent(SYSTEM_USER_ID, event)
       })
     )
 
@@ -250,6 +247,3 @@ import { SubscriptionManagerService } from "./subscription"
 
 // Re-export for convenience
 export { EventBatcherService, SubscriptionManagerService }
-
-type EventBatcher = EventBatcherService
-type SubscriptionManager = SubscriptionManagerService

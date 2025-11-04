@@ -1,4 +1,4 @@
-import { Effect, Ref, Queue, Stream, Schedule, Duration } from "effect"
+import { Effect, Ref, Queue, Stream, Schedule, Duration, Fiber } from "effect"
 import type { EntityId, AtomicEvent } from "./types"
 
 /**
@@ -139,6 +139,7 @@ const makeBatcher = (config: BatcherConfig): Effect.Effect<EventBatcher> =>
     const shutdown = Effect.gen(function* () {
       yield* Ref.set(running, false)
       yield* Effect.sleep(Duration.millis(config.windowMs * 2)) // Wait for final flush
+      yield* Fiber.interrupt(flusherFiber) // Clean up background fiber
     })
 
     return {
