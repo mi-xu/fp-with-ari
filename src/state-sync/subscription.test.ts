@@ -41,9 +41,7 @@ describe("Subscription Filtering", () => {
       workspaces: new Set(),
     }
 
-    const isRelevant = await Effect.runPromise(
-      manager.isRelevant(event, subscription, emptyState)
-    )
+    const isRelevant = await Effect.runPromise(manager.isRelevant(event, subscription, emptyState))
 
     expect(isRelevant).toBe(false)
   })
@@ -77,9 +75,7 @@ describe("Subscription Filtering", () => {
       workspaces: new Set(),
     }
 
-    const isRelevant = await Effect.runPromise(
-      manager.isRelevant(event, subscription, state)
-    )
+    const isRelevant = await Effect.runPromise(manager.isRelevant(event, subscription, state))
 
     expect(isRelevant).toBe(true)
   })
@@ -113,9 +109,7 @@ describe("Subscription Filtering", () => {
       workspaces: new Set(),
     }
 
-    const isRelevant = await Effect.runPromise(
-      manager.isRelevant(event, subscription, state)
-    )
+    const isRelevant = await Effect.runPromise(manager.isRelevant(event, subscription, state))
 
     expect(isRelevant).toBe(false)
   })
@@ -227,9 +221,7 @@ describe("Workspace Subgraph Tracking", () => {
       workspaces: new Set([WorkspaceId("workspace-1")]),
     }
 
-    const isRelevant = await Effect.runPromise(
-      manager.isRelevant(event, subscription, state)
-    )
+    const isRelevant = await Effect.runPromise(manager.isRelevant(event, subscription, state))
 
     expect(isRelevant).toBe(true)
   })
@@ -289,9 +281,7 @@ describe("Workspace Subgraph Tracking", () => {
       workspaces: new Set([WorkspaceId("workspace-1")]), // Different workspace
     }
 
-    const isRelevant = await Effect.runPromise(
-      manager.isRelevant(event, subscription, state)
-    )
+    const isRelevant = await Effect.runPromise(manager.isRelevant(event, subscription, state))
 
     expect(isRelevant).toBe(false)
   })
@@ -489,9 +479,7 @@ describe("Combined Filtering", () => {
       workspaces: new Set([WorkspaceId("workspace-1")]),
     }
 
-    const isRelevant = await Effect.runPromise(
-      manager.isRelevant(event, subscription, state)
-    )
+    const isRelevant = await Effect.runPromise(manager.isRelevant(event, subscription, state))
 
     expect(isRelevant).toBe(true)
   })
@@ -569,9 +557,7 @@ describe("Combined Filtering", () => {
       affectsEntities: [EntityId("folder-1")],
     }
 
-    const relevant1 = await Effect.runPromise(
-      manager.isRelevant(event1, subscription, state)
-    )
+    const relevant1 = await Effect.runPromise(manager.isRelevant(event1, subscription, state))
 
     expect(relevant1).toBe(true)
 
@@ -588,9 +574,7 @@ describe("Combined Filtering", () => {
       affectsEntities: [EntityId("folder-2")],
     }
 
-    const relevant2 = await Effect.runPromise(
-      manager.isRelevant(event2, subscription, state)
-    )
+    const relevant2 = await Effect.runPromise(manager.isRelevant(event2, subscription, state))
 
     expect(relevant2).toBe(false)
   })

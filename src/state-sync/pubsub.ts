@@ -39,9 +39,7 @@ export type StateSync = {
   /**
    * Get filtered event stream for a subscription
    */
-  readonly subscribe: (
-    subscription: Subscription
-  ) => Effect.Effect<Stream.Stream<EnvelopedEvent>>
+  readonly subscribe: (subscription: Subscription) => Effect.Effect<Stream.Stream<EnvelopedEvent>>
 
   /**
    * Get the event batcher for scheduling browser updates
@@ -85,9 +83,7 @@ export const make = (
      * Get next sequence number
      */
     const getNextSequenceNumber = (): Effect.Effect<SequenceNumber> =>
-      Ref.updateAndGet(sequenceCounter, n => n + 1).pipe(
-        Effect.map(n => n as SequenceNumber)
-      )
+      Ref.updateAndGet(sequenceCounter, n => n + 1).pipe(Effect.map(n => n as SequenceNumber))
 
     /**
      * Publish an event
@@ -130,22 +126,19 @@ export const make = (
     const subscribe = (
       subscription: Subscription
     ): Effect.Effect<Stream.Stream<EnvelopedEvent, never, never>, never, Scope.Scope> =>
-      Effect.map(
-        PubSub.subscribe(eventPubSub),
-        dequeue => {
-          const stream = Stream.fromQueue(dequeue, { shutdown: true })
+      Effect.map(PubSub.subscribe(eventPubSub), dequeue => {
+        const stream = Stream.fromQueue(dequeue, { shutdown: true })
 
-          // Filter based on subscription
-          const filtered = Stream.filterEffect(stream, event =>
-            Effect.gen(function* () {
-              const currentState = yield* Ref.get(state)
-              return yield* subManager.isRelevant(event, subscription, currentState)
-            })
-          )
+        // Filter based on subscription
+        const filtered = Stream.filterEffect(stream, event =>
+          Effect.gen(function* () {
+            const currentState = yield* Ref.get(state)
+            return yield* subManager.isRelevant(event, subscription, currentState)
+          })
+        )
 
-          return filtered
-        }
-      )
+        return filtered
+      })
 
     /**
      * Get current state
@@ -210,23 +203,19 @@ export const makeWithDeps = (
   config: StateSyncConfig = { eventBufferSize: 1000 }
 ): Effect.Effect<StateSync> =>
   Effect.gen(function* () {
-    const batcher = yield* 
-      Effect.serviceOption(EventBatcher).pipe(
-        Effect.flatMap(option =>
-          option._tag === "Some"
-            ? Effect.succeed(option.value)
-            : Effect.fail(new Error("EventBatcher not provided")
-        )
+    const batcher = yield* Effect.serviceOption(EventBatcher).pipe(
+      Effect.flatMap(option =>
+        option._tag === "Some"
+          ? Effect.succeed(option.value)
+          : Effect.fail(new Error("EventBatcher not provided"))
       )
     )
 
-    const subManager = yield* 
-      Effect.serviceOption(SubscriptionManager).pipe(
-        Effect.flatMap(option =>
-          option._tag === "Some"
-            ? Effect.succeed(option.value)
-            : Effect.fail(new Error("SubscriptionManager not provided")
-        )
+    const subManager = yield* Effect.serviceOption(SubscriptionManager).pipe(
+      Effect.flatMap(option =>
+        option._tag === "Some"
+          ? Effect.succeed(option.value)
+          : Effect.fail(new Error("SubscriptionManager not provided"))
       )
     )
 

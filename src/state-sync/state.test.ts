@@ -1,13 +1,6 @@
 import { describe, test, expect } from "bun:test"
 import { Effect } from "effect"
-import {
-  EntityId,
-  EdgeId,
-  makeEdgeId,
-  emptyState,
-  type State,
-  type Event,
-} from "./types"
+import { EntityId, EdgeId, makeEdgeId, emptyState, type State, type Event } from "./types"
 import {
   applyEvent,
   getEntitiesByType,

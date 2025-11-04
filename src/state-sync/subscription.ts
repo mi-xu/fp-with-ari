@@ -154,10 +154,7 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager> =>
         // Check if any affected entity is an "always include" type
         for (const entityId of affectedEntities) {
           const entity = state.entities.get(entityId)
-          if (
-            entity &&
-            subscription.alwaysInclude.entityTypes.includes(entity.type)
-          ) {
+          if (entity && subscription.alwaysInclude.entityTypes.includes(entity.type)) {
             return true
           }
         }
@@ -213,18 +210,8 @@ export const needsFullEntityData = (
     if (!fromEntity || !toEntity) return false
 
     // Check if 'from' is subscribed but 'to' is not
-    const fromSubscribed = isEntitySubscribed(
-      event.from,
-      fromEntity.type,
-      subscription,
-      index
-    )
-    const toSubscribed = isEntitySubscribed(
-      event.to,
-      toEntity.type,
-      subscription,
-      index
-    )
+    const fromSubscribed = isEntitySubscribed(event.from, fromEntity.type, subscription, index)
+    const toSubscribed = isEntitySubscribed(event.to, toEntity.type, subscription, index)
 
     // If 'from' is subscribed but 'to' is not, client needs full 'to' data
     return fromSubscribed && !toSubscribed
@@ -262,8 +249,7 @@ const isEntitySubscribed = (
 // Public API
 // ============================================================================
 
-export const make = (): Effect.Effect<SubscriptionManager> =>
-  makeSubscriptionManager()
+export const make = (): Effect.Effect<SubscriptionManager> => makeSubscriptionManager()
 
 /**
  * Create a Layer that provides SubscriptionManager

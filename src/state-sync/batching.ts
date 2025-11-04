@@ -17,17 +17,14 @@ type PendingUpdate = {
 }
 
 type BatcherConfig = {
-  readonly windowMs: number  // Batch window in milliseconds (default 16ms)
+  readonly windowMs: number // Batch window in milliseconds (default 16ms)
 }
 
 export type EventBatcher = {
   /**
    * Schedule an entity update to be batched
    */
-  readonly scheduleUpdate: (
-    entityId: EntityId,
-    changes: Record<string, any>
-  ) => Effect.Effect<void>
+  readonly scheduleUpdate: (entityId: EntityId, changes: Record<string, any>) => Effect.Effect<void>
 
   /**
    * Get a stream of batched events

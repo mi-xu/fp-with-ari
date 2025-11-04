@@ -44,13 +44,7 @@ export type JsonValue =
 // Entities
 // ============================================================================
 
-export type EntityType =
-  | "window"
-  | "tab"
-  | "workspace"
-  | "folder"
-  | "tag"
-  | string  // Extensible for custom types
+export type EntityType = "window" | "tab" | "workspace" | "folder" | "tag" | string // Extensible for custom types
 
 export type Entity = {
   readonly id: EntityId
@@ -65,17 +59,17 @@ export type Entity = {
 // ============================================================================
 
 export type EdgeType =
-  | "contains"      // window contains tab, folder contains tab/folder
-  | "tagged_with"   // tab tagged_with tag
-  | "belongs_to"    // folder belongs_to workspace
-  | string          // Extensible
+  | "contains" // window contains tab, folder contains tab/folder
+  | "tagged_with" // tab tagged_with tag
+  | "belongs_to" // folder belongs_to workspace
+  | string // Extensible
 
 export type Edge = {
   readonly id: EdgeId
   readonly from: EntityId
   readonly to: EntityId
   readonly type: EdgeType
-  readonly data: Record<string, JsonValue>  // e.g., { "list-index": 0 }
+  readonly data: Record<string, JsonValue> // e.g., { "list-index": 0 }
   readonly createdAt: Date
 }
 
@@ -169,7 +163,7 @@ export type EnvelopedEvent = {
 export type Subscription = {
   readonly userId: UserId
   readonly alwaysInclude: {
-    readonly entityTypes: ReadonlyArray<EntityType>  // e.g., ["window", "tab"]
+    readonly entityTypes: ReadonlyArray<EntityType> // e.g., ["window", "tab"]
   }
   readonly workspaces: ReadonlySet<WorkspaceId>
 }

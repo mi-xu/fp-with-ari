@@ -1,14 +1,5 @@
 import { Effect } from "effect"
-import type {
-  State,
-  Event,
-  AtomicEvent,
-  Entity,
-  Edge,
-  EntityId,
-  EdgeId,
-  EntityType,
-} from "./types"
+import type { State, Event, AtomicEvent, Entity, Edge, EntityId, EdgeId, EntityType } from "./types"
 import { emptyState } from "./types"
 
 /**
@@ -76,11 +67,7 @@ const applyAtomicEvent = (state: State, event: AtomicEvent): State => {
       return {
         ...state,
         entities: new Map(state.entities).set(event.entityId, entity),
-        entitiesByType: addToSetInMap(
-          state.entitiesByType,
-          event.entityType,
-          event.entityId
-        ),
+        entitiesByType: addToSetInMap(state.entitiesByType, event.entityType, event.entityId),
       }
     }
 
@@ -222,10 +209,7 @@ export const applyEventEffect = (state: State, event: Event): Effect.Effect<Stat
 /**
  * Get all entities of a specific type
  */
-export const getEntitiesByType = (
-  state: State,
-  type: EntityType
-): ReadonlyArray<Entity> => {
+export const getEntitiesByType = (state: State, type: EntityType): ReadonlyArray<Entity> => {
   const ids = state.entitiesByType.get(type) || new Set()
   return Array.from(ids)
     .map(id => state.entities.get(id))
@@ -255,10 +239,7 @@ export const getIncomingEdges = (state: State, entityId: EntityId): ReadonlyArra
 /**
  * Find all entities reachable from a starting entity by following outgoing edges
  */
-export const findReachableEntities = (
-  state: State,
-  startId: EntityId
-): ReadonlySet<EntityId> => {
+export const findReachableEntities = (state: State, startId: EntityId): ReadonlySet<EntityId> => {
   const visited = new Set<EntityId>()
   const queue: EntityId[] = [startId]
 

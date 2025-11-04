@@ -99,13 +99,12 @@ describe("Event Batching", () => {
       const collectedEvents: any[] = []
 
       // Start consuming stream in background
-      const streamFiber = yield* 
-        Effect.fork(
-          Stream.runForEach(
-            Stream.take(batcher.events, 1), // Take only 1 batch
-            event => Effect.sync(() => collectedEvents.push(event))
-          )
+      const streamFiber = yield* Effect.fork(
+        Stream.runForEach(
+          Stream.take(batcher.events, 1), // Take only 1 batch
+          event => Effect.sync(() => collectedEvents.push(event))
         )
+      )
 
       // Schedule updates
       yield* batcher.scheduleUpdate(EntityId("tab-1"), { url: "https://example.com" })
@@ -132,12 +131,9 @@ describe("Event Batching", () => {
 
       const collectedEvents: any[] = []
 
-      const streamFiber = yield* 
-        Effect.fork(
-          Stream.runForEach(batcher.events, event =>
-            Effect.sync(() => collectedEvents.push(event))
-          )
-        )
+      const streamFiber = yield* Effect.fork(
+        Stream.runForEach(batcher.events, event => Effect.sync(() => collectedEvents.push(event)))
+      )
 
       yield* batcher.scheduleUpdate(EntityId("tab-1"), { url: "https://example.com" })
 
@@ -230,15 +226,13 @@ describe("Event Batching", () => {
     const program = Effect.gen(function* () {
       const batcher = yield* makeBatcher({ windowMs: 16 })
 
-      yield* 
-        batcher.scheduleUpdate(EntityId("tab-1"), {
-          metadata: { notes: "First note" },
-        })
+      yield* batcher.scheduleUpdate(EntityId("tab-1"), {
+        metadata: { notes: "First note" },
+      })
 
-      yield* 
-        batcher.scheduleUpdate(EntityId("tab-1"), {
-          metadata: { tags: ["important"] },
-        })
+      yield* batcher.scheduleUpdate(EntityId("tab-1"), {
+        metadata: { tags: ["important"] },
+      })
 
       const events = yield* batcher.flush
 
@@ -263,13 +257,11 @@ describe("Batching with Custom Window Sizes", () => {
 
       const collectedEvents: any[] = []
 
-      const streamFiber = yield* 
-        Effect.fork(
-          Stream.runForEach(
-            Stream.take(batcher.events, 1),
-            event => Effect.sync(() => collectedEvents.push(event))
-          )
+      const streamFiber = yield* Effect.fork(
+        Stream.runForEach(Stream.take(batcher.events, 1), event =>
+          Effect.sync(() => collectedEvents.push(event))
         )
+      )
 
       yield* batcher.scheduleUpdate(EntityId("tab-1"), { test: true })
 
@@ -290,13 +282,11 @@ describe("Batching with Custom Window Sizes", () => {
 
       const collectedEvents: any[] = []
 
-      const streamFiber = yield* 
-        Effect.fork(
-          Stream.runForEach(
-            Stream.take(batcher.events, 1),
-            event => Effect.sync(() => collectedEvents.push(event))
-          )
+      const streamFiber = yield* Effect.fork(
+        Stream.runForEach(Stream.take(batcher.events, 1), event =>
+          Effect.sync(() => collectedEvents.push(event))
         )
+      )
 
       yield* batcher.scheduleUpdate(EntityId("tab-1"), { test: true })
 
