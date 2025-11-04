@@ -1,6 +1,16 @@
-import { Effect } from "effect"
-import type { State, Event, AtomicEvent, Entity, Edge, EntityId, EdgeId, EntityType } from "./types"
-import { emptyState } from "./types"
+import { Effect, Either } from "effect"
+import type {
+  State,
+  Event,
+  AtomicEvent,
+  Entity,
+  Edge,
+  EntityId,
+  EdgeId,
+  EntityType,
+  StateSyncError,
+} from "./types"
+import { emptyState, EntityNotFoundError, EdgeNotFoundError, InvalidEventError } from "./types"
 
 /**
  * State management and event application
@@ -198,9 +208,127 @@ export const applyEvent = (state: State, event: Event): State => {
 
 /**
  * Effect-based event application with error handling
+ * This version is lenient - it silently ignores operations on missing entities
  */
-export const applyEventEffect = (state: State, event: Event): Effect.Effect<State> =>
+export const applyEventEffect = (state: State, event: Event): Effect.Effect<State, never, never> =>
   Effect.sync(() => applyEvent(state, event))
+
+/**
+ * Strict event application that fails if entities/edges don't exist
+ * Returns Either to indicate success or specific errors
+ */
+export const applyEventStrict = (
+  state: State,
+  event: AtomicEvent
+): Either.Either<State, StateSyncError> => {
+  switch (event.type) {
+    case "EntityCreated": {
+      // Check if entity already exists
+      if (state.entities.has(event.entityId)) {
+        return Either.left(
+          new InvalidEventError({
+            event: JSON.stringify(event),
+            reason: `Entity ${event.entityId} already exists`,
+          })
+        )
+      }
+      return Either.right(applyAtomicEvent(state, event))
+    }
+
+    case "EntityUpdated": {
+      const existing = state.entities.get(event.entityId)
+      if (!existing) {
+        return Either.left(
+          new EntityNotFoundError({
+            entityId: event.entityId,
+          })
+        )
+      }
+      return Either.right(applyAtomicEvent(state, event))
+    }
+
+    case "EntityDeleted": {
+      const entity = state.entities.get(event.entityId)
+      if (!entity) {
+        return Either.left(
+          new EntityNotFoundError({
+            entityId: event.entityId,
+          })
+        )
+      }
+      return Either.right(applyAtomicEvent(state, event))
+    }
+
+    case "EdgeCreated": {
+      // Check if entities exist
+      if (!state.entities.has(event.from)) {
+        return Either.left(
+          new EntityNotFoundError({
+            entityId: event.from,
+          })
+        )
+      }
+      if (!state.entities.has(event.to)) {
+        return Either.left(
+          new EntityNotFoundError({
+            entityId: event.to,
+          })
+        )
+      }
+      // Check if edge already exists
+      if (state.edges.has(event.edgeId)) {
+        return Either.left(
+          new InvalidEventError({
+            event: JSON.stringify(event),
+            reason: `Edge ${event.edgeId} already exists`,
+          })
+        )
+      }
+      return Either.right(applyAtomicEvent(state, event))
+    }
+
+    case "EdgeRemoved": {
+      const edge = state.edges.get(event.edgeId)
+      if (!edge) {
+        return Either.left(
+          new EdgeNotFoundError({
+            edgeId: event.edgeId,
+          })
+        )
+      }
+      return Either.right(applyAtomicEvent(state, event))
+    }
+  }
+}
+
+/**
+ * Effect-based strict event application
+ */
+export const applyEventStrictEffect = (
+  state: State,
+  event: Event
+): Effect.Effect<State, StateSyncError, never> => {
+  if (event.type === "Transaction") {
+    // Apply all operations, short-circuit on first error
+    return Effect.gen(function* () {
+      let currentState = state
+      for (const op of event.operations) {
+        const result = applyEventStrict(currentState, op)
+        if (Either.isLeft(result)) {
+          return yield* Effect.fail(result.left)
+        }
+        currentState = result.right
+      }
+      return currentState
+    })
+  } else {
+    const result = applyEventStrict(state, event)
+    return Either.match(result, {
+      onLeft: error => Effect.fail(error),
+      onRight: newState => Effect.succeed(newState),
+    })
+  }
+}
 
 // ============================================================================
 // Query Helpers

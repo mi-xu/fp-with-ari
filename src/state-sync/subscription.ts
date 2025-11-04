@@ -31,12 +31,12 @@ export type SubscriptionManager = {
   /**
    * Rebuild the workspace index from current state
    */
-  readonly rebuildIndex: (state: State) => Effect.Effect<void>
+  readonly rebuildIndex: (state: State) => Effect.Effect<void, never, never>
 
   /**
    * Incrementally update the index based on an event
    */
-  readonly updateIndex: (state: State, event: Event) => Effect.Effect<void>
+  readonly updateIndex: (state: State, event: Event) => Effect.Effect<void, never, never>
 
   /**
    * Check if an event is relevant for a subscription
@@ -45,21 +45,24 @@ export type SubscriptionManager = {
     event: EnvelopedEvent,
     subscription: Subscription,
     state: State
-  ) => Effect.Effect<boolean>
+  ) => Effect.Effect<boolean, never, never>
 
   /**
    * Get the current workspace index
    */
-  readonly getIndex: Effect.Effect<WorkspaceIndex>
+  readonly getIndex: Effect.Effect<WorkspaceIndex, never, never>
 }
 
 // ============================================================================
 // Implementation
 // ============================================================================
 
-const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager> =>
+const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager, never, never> =>
   Effect.gen(function* () {
     const index = yield* Ref.make<WorkspaceIndex>(new Map())
+
+    // Cached version of getIndex for performance
+    const cachedGetIndex = Ref.get(index).pipe(Effect.cached)
 
     /**
      * Rebuild the entire workspace index from scratch
@@ -175,9 +178,9 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager> =>
       })
 
     /**
-     * Get current index
+     * Get current index (with caching for repeated reads)
      */
-    const getIndex = Ref.get(index)
+    const getIndex = yield* cachedGetIndex
 
     return {
       rebuildIndex,
