@@ -182,7 +182,7 @@ export const make = (
      */
     const shutdown = Effect.gen(function* () {
       // Shutdown batcher
-      yield* batcher.shutdown)
+      yield* batcher.shutdown
 
       // Interrupt background fibers
       const allFibers = yield* Ref.get(fibers)
