@@ -10,31 +10,33 @@
  *
  * Usage:
  * ```typescript
- * import { StateSync } from "./state-sync"
- * import { Effect } from "effect"
+ * import { makeStateSync, makeBatcher, makeSubscriptionManager } from "./state-sync"
+ * import { Effect, Stream } from "effect"
  *
- * const program = Effect.gen(function* (_) {
- *   const sync = yield* _(StateSync.make())
+ * const program = Effect.gen(function* () {
+ *   const batcher = yield* makeBatcher()
+ *   const subManager = yield* makeSubscriptionManager()
+ *   const sync = yield* makeStateSync({ eventBufferSize: 1000 }, batcher, subManager)
  *
  *   // Publish events
- *   yield* _(sync.publishEvent(userId, {
+ *   yield* sync.publishEvent(userId, {
  *     type: "EntityCreated",
  *     entityId: EntityId("tab-1"),
  *     entityType: "tab",
  *     data: { url: "https://example.com", title: "Example" }
- *   }))
+ *   })
  *
  *   // Subscribe to filtered events
- *   const stream = yield* _(sync.subscribe({
+ *   const stream = yield* sync.subscribe({
  *     userId,
  *     alwaysInclude: { entityTypes: ["window", "tab"] },
  *     workspaces: new Set([workspaceId])
- *   }))
+ *   })
  *
  *   // Process events
- *   yield* _(Stream.runForEach(stream, event => {
- *     console.log("Event:", event)
- *   }))
+ *   yield* Stream.runForEach(stream, event =>
+ *     Effect.sync(() => console.log("Event:", event))
+ *   )
  * })
  * ```
  */
@@ -95,8 +97,4 @@ export {
 
 // Main pub/sub system
 export type { StateSync, StateSyncConfig } from "./pubsub"
-export {
-  make as makeStateSync,
-  makeWithDeps as makeStateSyncWithDeps,
-  StateSyncService,
-} from "./pubsub"
+export { make as makeStateSync, StateSyncService } from "./pubsub"

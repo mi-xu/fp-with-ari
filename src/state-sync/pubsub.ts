@@ -196,43 +196,21 @@ export const make = (
 // Public API
 // ============================================================================
 
-/**
- * Create a new StateSync instance with dependencies
- */
-export const makeWithDeps = (
-  config: StateSyncConfig = { eventBufferSize: 1000 }
-): Effect.Effect<StateSync> =>
-  Effect.gen(function* () {
-    const batcher = yield* Effect.serviceOption(EventBatcher).pipe(
-      Effect.flatMap(option =>
-        option._tag === "Some"
-          ? Effect.succeed(option.value)
-          : Effect.fail(new Error("EventBatcher not provided"))
-      )
-    )
-
-    const subManager = yield* Effect.serviceOption(SubscriptionManager).pipe(
-      Effect.flatMap(option =>
-        option._tag === "Some"
-          ? Effect.succeed(option.value)
-          : Effect.fail(new Error("SubscriptionManager not provided"))
-      )
-    )
-
-    return yield* make(config, batcher, subManager)
-  })
-
-/**
- * Service wrapper
- */
-export class StateSyncService extends Effect.Service<StateSyncService>()("StateSyncService", {
-  effect: makeWithDeps(),
-  dependencies: [],
-}) {}
-
-// Import the service types
+// Import the service classes
 import { EventBatcherService } from "./batching"
 import { SubscriptionManagerService } from "./subscription"
+
+/**
+ * Service wrapper for StateSync with automatic dependency injection
+ */
+export class StateSyncService extends Effect.Service<StateSyncService>()("StateSyncService", {
+  effect: Effect.gen(function* () {
+    const batcher = yield* EventBatcherService
+    const subManager = yield* SubscriptionManagerService
+    return yield* make({ eventBufferSize: 1000 }, batcher, subManager)
+  }),
+  dependencies: [EventBatcherService.Default, SubscriptionManagerService.Default],
+}) {}
 
 // Re-export for convenience
 export { EventBatcherService, SubscriptionManagerService }
