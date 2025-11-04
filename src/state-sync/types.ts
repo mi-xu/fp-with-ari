@@ -1,4 +1,4 @@
-import { Brand } from "effect"
+import { Brand, Data } from "effect"
 
 /**
  * Core domain types for the state synchronization system.
@@ -10,26 +10,109 @@ import { Brand } from "effect"
  */
 
 // ============================================================================
-// IDs and Basic Types
+// Error Types
+// ============================================================================
+
+/**
+ * Error types for state synchronization operations
+ */
+export class InvalidEntityIdError extends Data.TaggedError("InvalidEntityIdError")<{
+  readonly id: string
+  readonly reason: string
+}> {}
+
+export class InvalidEdgeIdError extends Data.TaggedError("InvalidEdgeIdError")<{
+  readonly id: string
+  readonly reason: string
+}> {}
+
+export class InvalidUserIdError extends Data.TaggedError("InvalidUserIdError")<{
+  readonly id: string
+  readonly reason: string
+}> {}
+
+export class InvalidWorkspaceIdError extends Data.TaggedError("InvalidWorkspaceIdError")<{
+  readonly id: string
+  readonly reason: string
+}> {}
+
+export class InvalidSequenceNumberError extends Data.TaggedError("InvalidSequenceNumberError")<{
+  readonly value: number
+  readonly reason: string
+}> {}
+
+export class EntityNotFoundError extends Data.TaggedError("EntityNotFoundError")<{
+  readonly entityId: string
+}> {}
+
+export class EdgeNotFoundError extends Data.TaggedError("EdgeNotFoundError")<{
+  readonly edgeId: string
+}> {}
+
+export class InvalidEventError extends Data.TaggedError("InvalidEventError")<{
+  readonly event: string
+  readonly reason: string
+}> {}
+
+export class QueueFullError extends Data.TaggedError("QueueFullError")<{
+  readonly capacity: number
+}> {}
+
+export type StateSyncError =
+  | InvalidEntityIdError
+  | InvalidEdgeIdError
+  | InvalidUserIdError
+  | InvalidWorkspaceIdError
+  | InvalidSequenceNumberError
+  | EntityNotFoundError
+  | EdgeNotFoundError
+  | InvalidEventError
+  | QueueFullError
+
+// ============================================================================
+// IDs and Basic Types with Runtime Validation
 // ============================================================================
 
 export type EntityId = string & Brand.Brand<"EntityId">
-export const EntityId = Brand.nominal<EntityId>()
+export const EntityId = Brand.refined<EntityId>(
+  (id): id is EntityId => typeof id === "string" && id.length > 0 && id.length <= 256,
+  id =>
+    Brand.error(
+      `Invalid EntityId: ${id} - must be a non-empty string with length <= 256 characters`
+    )
+)
 
 export type EdgeId = string & Brand.Brand<"EdgeId">
-export const EdgeId = Brand.nominal<EdgeId>()
+export const EdgeId = Brand.refined<EdgeId>(
+  (id): id is EdgeId => typeof id === "string" && id.length > 0 && id.length <= 512,
+  id =>
+    Brand.error(`Invalid EdgeId: ${id} - must be a non-empty string with length <= 512 characters`)
+)
 
 export type UserId = string & Brand.Brand<"UserId">
-export const UserId = Brand.nominal<UserId>()
+export const UserId = Brand.refined<UserId>(
+  (id): id is UserId => typeof id === "string" && id.length > 0 && id.length <= 256,
+  id =>
+    Brand.error(`Invalid UserId: ${id} - must be a non-empty string with length <= 256 characters`)
+)
 
 // System user ID for internal operations (e.g., batched events)
 export const SYSTEM_USER_ID = UserId("system")
 
 export type WorkspaceId = string & Brand.Brand<"WorkspaceId">
-export const WorkspaceId = Brand.nominal<WorkspaceId>()
+export const WorkspaceId = Brand.refined<WorkspaceId>(
+  (id): id is WorkspaceId => typeof id === "string" && id.length > 0 && id.length <= 256,
+  id =>
+    Brand.error(
+      `Invalid WorkspaceId: ${id} - must be a non-empty string with length <= 256 characters`
+    )
+)
 
 export type SequenceNumber = number & Brand.Brand<"SequenceNumber">
-export const SequenceNumber = Brand.nominal<SequenceNumber>()
+export const SequenceNumber = Brand.refined<SequenceNumber>(
+  (n): n is SequenceNumber => typeof n === "number" && Number.isInteger(n) && n >= 0,
+  n => Brand.error(`Invalid SequenceNumber: ${n} - must be a non-negative integer`)
+)
 
 // JSON-serializable values
 export type JsonValue =

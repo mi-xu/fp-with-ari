@@ -41,7 +41,10 @@
  * ```
  */
 
+// ============================================================================
 // Types
+// ============================================================================
+
 export type {
   EntityId,
   EdgeId,
@@ -58,6 +61,7 @@ export type {
   Event,
   EnvelopedEvent,
   Subscription,
+  StateSyncError,
 } from "./types"
 
 export {
@@ -72,10 +76,31 @@ export {
   getAffectedEntities,
 } from "./types"
 
-// State management
+// ============================================================================
+// Error Types
+// ============================================================================
+
+export {
+  InvalidEntityIdError,
+  InvalidEdgeIdError,
+  InvalidUserIdError,
+  InvalidWorkspaceIdError,
+  InvalidSequenceNumberError,
+  EntityNotFoundError,
+  EdgeNotFoundError,
+  InvalidEventError,
+  QueueFullError,
+} from "./types"
+
+// ============================================================================
+// State Management
+// ============================================================================
+
 export {
   applyEvent,
   applyEventEffect,
+  applyEventStrict,
+  applyEventStrictEffect,
   getEntitiesByType,
   getOutgoingEdges,
   getIncomingEdges,
@@ -83,11 +108,24 @@ export {
   findReachableEntitiesFromSet,
 } from "./state"
 
-// Event batching
-export type { EventBatcher } from "./batching"
-export { make as makeBatcher, EventBatcherService } from "./batching"
+// ============================================================================
+// Event Batching
+// ============================================================================
 
-// Subscription management
+export type { EventBatcher } from "./batching"
+export {
+  make as makeBatcher,
+  makeFromConfig as makeBatcherFromConfig,
+  EventBatcherService,
+  EventBatcherServiceLive,
+  BatchWindowConfig,
+  QueueCapacityConfig,
+} from "./batching"
+
+// ============================================================================
+// Subscription Management
+// ============================================================================
+
 export type { SubscriptionManager, WorkspaceIndex } from "./subscription"
 export {
   make as makeSubscriptionManager,
@@ -95,6 +133,27 @@ export {
   needsFullEntityData,
 } from "./subscription"
 
-// Main pub/sub system
+// ============================================================================
+// Main Pub/Sub System
+// ============================================================================
+
 export type { StateSync, StateSyncConfig } from "./pubsub"
-export { make as makeStateSync, StateSyncService } from "./pubsub"
+export {
+  make as makeStateSync,
+  makeFromConfig as makeStateSyncFromConfig,
+  StateSyncService,
+  StateSyncServiceLive,
+  EventBufferSizeConfig,
+} from "./pubsub"
+
+// ============================================================================
+// Runtime (ManagedRuntime for external framework integration)
+// ============================================================================
+
+export type { RuntimeConfig } from "./runtime"
+export {
+  createStateSyncRuntime,
+  createStateSyncRuntimeWithConfig,
+  runWithStateSync,
+  createDisposableStateSync,
+} from "./runtime"

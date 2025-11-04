@@ -1,4 +1,4 @@
-import { Effect, Ref, PubSub, Stream, Fiber, Scope } from "effect"
+import { Effect, Ref, PubSub, Stream, Fiber, Scope, Config, Layer } from "effect"
 import type {
   State,
   Event,
@@ -7,8 +7,9 @@ import type {
   UserId,
   SequenceNumber,
   Subscription,
+  StateSyncError,
 } from "./types"
-import { emptyState, getAffectedEntities, SYSTEM_USER_ID } from "./types"
+import { emptyState, getAffectedEntities, SYSTEM_USER_ID, QueueFullError } from "./types"
 import { applyEvent } from "./state"
 import type { EventBatcher } from "./batching"
 import type { SubscriptionManager } from "./subscription"
@@ -16,6 +17,21 @@ import type { SubscriptionManager } from "./subscription"
 /**
  * Main state synchronization pub/sub system
  */
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+/**
+ * Configuration for the StateSync system with validation
+ */
+export const EventBufferSizeConfig = Config.number("EVENT_BUFFER_SIZE").pipe(
+  Config.withDefault(1000),
+  Config.validate({
+    message: "Event buffer size must be between 100 and 100000",
+    validation: n => n >= 100 && n <= 100000,
+  })
+)
 
 // ============================================================================
 // Types
@@ -29,32 +45,37 @@ export type StateSync = {
   /**
    * Publish an event (applies to state and broadcasts to subscribers)
    */
-  readonly publishEvent: (userId: UserId, event: Event) => Effect.Effect<EnvelopedEvent>
+  readonly publishEvent: (
+    userId: UserId,
+    event: Event
+  ) => Effect.Effect<EnvelopedEvent, QueueFullError, never>
 
   /**
    * Get current state snapshot
    */
-  readonly getState: Effect.Effect<State>
+  readonly getState: Effect.Effect<State, never, never>
 
   /**
    * Get filtered event stream for a subscription
    */
-  readonly subscribe: (subscription: Subscription) => Effect.Effect<Stream.Stream<EnvelopedEvent>>
+  readonly subscribe: (
+    subscription: Subscription
+  ) => Effect.Effect<Stream.Stream<EnvelopedEvent, never, never>, never, Scope.Scope>
 
   /**
    * Get the event batcher for scheduling browser updates
    */
-  readonly getBatcher: Effect.Effect<EventBatcher>
+  readonly getBatcher: Effect.Effect<EventBatcher, never, never>
 
   /**
    * Get stream of batched events (merged into main event stream)
    */
-  readonly getBatchedEvents: Stream.Stream<Event>
+  readonly getBatchedEvents: Stream.Stream<Event, never, never>
 
   /**
    * Shutdown the sync system
    */
-  readonly shutdown: Effect.Effect<void>
+  readonly shutdown: Effect.Effect<void, never, never>
 }
 
 // ============================================================================
@@ -65,7 +86,7 @@ export const make = (
   config: StateSyncConfig,
   batcher: EventBatcher,
   subManager: SubscriptionManager
-): Effect.Effect<StateSync> =>
+): Effect.Effect<StateSync, never, never> =>
   Effect.gen(function* () {
     // State
     const state = yield* Ref.make<State>(emptyState)
@@ -82,13 +103,16 @@ export const make = (
     /**
      * Get next sequence number
      */
-    const getNextSequenceNumber = (): Effect.Effect<SequenceNumber> =>
+    const getNextSequenceNumber = (): Effect.Effect<SequenceNumber, never, never> =>
       Ref.updateAndGet(sequenceCounter, n => n + 1).pipe(Effect.map(n => n as SequenceNumber))
 
     /**
      * Publish an event
      */
-    const publishEvent = (userId: UserId, event: Event): Effect.Effect<EnvelopedEvent> =>
+    const publishEvent = (
+      userId: UserId,
+      event: Event
+    ): Effect.Effect<EnvelopedEvent, QueueFullError, never> =>
       Effect.gen(function* () {
         // Get sequence number
         const sequenceNumber = yield* getNextSequenceNumber()
@@ -112,8 +136,10 @@ export const make = (
         // Update subscription manager index
         yield* subManager.updateIndex(newState, event)
 
-        // Publish to subscribers
-        yield* PubSub.publish(eventPubSub, enveloped)
+        // Publish to subscribers (handle backpressure)
+        const published = yield* PubSub.publish(eventPubSub, enveloped).pipe(
+          Effect.mapError(() => new QueueFullError({ capacity: config.eventBufferSize }))
+        )
 
         return enveloped
       })
@@ -201,6 +227,18 @@ import { EventBatcherService } from "./batching"
 import { SubscriptionManagerService } from "./subscription"
 
 /**
+ * Create a StateSync from Config environment variables
+ */
+export const makeFromConfig = (
+  batcher: EventBatcher,
+  subManager: SubscriptionManager
+): Effect.Effect<StateSync, never, never> =>
+  Effect.gen(function* () {
+    const eventBufferSize = yield* EventBufferSizeConfig
+    return yield* make({ eventBufferSize }, batcher, subManager)
+  })
+
+/**
  * Service wrapper for StateSync with automatic dependency injection
  */
 export class StateSyncService extends Effect.Service<StateSyncService>()("StateSyncService", {
@@ -211,6 +249,21 @@ export class StateSyncService extends Effect.Service<StateSyncService>()("StateS
   }),
   dependencies: [EventBatcherService.Default, SubscriptionManagerService.Default],
 }) {}
+
+/**
+ * Create a Layer that provides StateSync using Config
+ */
+export const StateSyncServiceLive = Layer.effect(
+  StateSyncService,
+  Effect.gen(function* () {
+    const batcher = yield* EventBatcherService
+    const subManager = yield* SubscriptionManagerService
+    return yield* makeFromConfig(batcher, subManager)
+  })
+).pipe(
+  Layer.provide(EventBatcherService.Default),
+  Layer.provide(SubscriptionManagerService.Default)
+)
 
 // Re-export for convenience
 export { EventBatcherService, SubscriptionManagerService }
