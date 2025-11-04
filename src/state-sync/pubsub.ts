@@ -68,18 +68,18 @@ export const make = (
   batcher: EventBatcher,
   subManager: SubscriptionManager
 ): Effect.Effect<StateSync> =>
-  Effect.gen(function* (_) {
+  Effect.gen(function* () {
     // State
-    const state = yield* _(Ref.make<State>(emptyState))
+    const state = yield* Ref.make<State>(emptyState)
 
     // Sequence number counter
-    const sequenceCounter = yield* _(Ref.make<number>(0))
+    const sequenceCounter = yield* Ref.make<number>(0)
 
     // Event pub/sub
-    const eventPubSub = yield* _(PubSub.bounded<EnvelopedEvent>(config.eventBufferSize))
+    const eventPubSub = yield* PubSub.bounded<EnvelopedEvent>(config.eventBufferSize)
 
     // Track background fibers
-    const fibers = yield* _(Ref.make<Fiber.Fiber<void, never>[]>([]))
+    const fibers = yield* Ref.make<Fiber.Fiber<void, never>[]>([])
 
     /**
      * Get next sequence number
@@ -93,9 +93,9 @@ export const make = (
      * Publish an event
      */
     const publishEvent = (userId: UserId, event: Event): Effect.Effect<EnvelopedEvent> =>
-      Effect.gen(function* (_) {
+      Effect.gen(function* () {
         // Get sequence number
-        const sequenceNumber = yield* _(getNextSequenceNumber())
+        const sequenceNumber = yield* getNextSequenceNumber()
 
         // Create enveloped event
         const enveloped: EnvelopedEvent = {
@@ -107,17 +107,17 @@ export const make = (
         }
 
         // Get current state for subscription manager
-        const currentState = yield* _(Ref.get(state))
+        const currentState = yield* Ref.get(state)
 
         // Apply event to state
         const newState = applyEvent(currentState, event)
-        yield* _(Ref.set(state, newState))
+        yield* Ref.set(state, newState)
 
         // Update subscription manager index
-        yield* _(subManager.updateIndex(newState, event))
+        yield* subManager.updateIndex(newState, event)
 
         // Publish to subscribers
-        yield* _(PubSub.publish(eventPubSub, enveloped))
+        yield* PubSub.publish(eventPubSub, enveloped)
 
         return enveloped
       })
@@ -137,9 +137,9 @@ export const make = (
 
           // Filter based on subscription
           const filtered = Stream.filterEffect(stream, event =>
-            Effect.gen(function* (_) {
-              const currentState = yield* _(Ref.get(state))
-              return yield* _(subManager.isRelevant(event, subscription, currentState))
+            Effect.gen(function* () {
+              const currentState = yield* Ref.get(state)
+              return yield* subManager.isRelevant(event, subscription, currentState)
             })
           )
 
@@ -165,31 +165,31 @@ export const make = (
 
     // Start background fiber to publish batched events
     const batchPublisher = Stream.runForEach(batchedEventsStream, event =>
-      Effect.gen(function* (_) {
+      Effect.gen(function* () {
         // Batched events don't have a specific userId context
         // In practice, they should be tagged with userId when scheduled
         // For now, we'll use a placeholder - this should be improved
         const userId = EntityIdBrand("system") as unknown as UserId
-        yield* _(publishEvent(userId, event))
+        yield* publishEvent(userId, event)
       })
     )
 
-    const batchPublisherFiber = yield* _(Effect.fork(batchPublisher))
-    yield* _(Ref.update(fibers, fs => [...fs, batchPublisherFiber]))
+    const batchPublisherFiber = yield* Effect.fork(batchPublisher)
+    yield* Ref.update(fibers, fs => [...fs, batchPublisherFiber])
 
     /**
      * Shutdown
      */
-    const shutdown = Effect.gen(function* (_) {
+    const shutdown = Effect.gen(function* () {
       // Shutdown batcher
-      yield* _(batcher.shutdown)
+      yield* batcher.shutdown)
 
       // Interrupt background fibers
-      const allFibers = yield* _(Ref.get(fibers))
-      yield* _(Effect.forEach(allFibers, Fiber.interrupt, { discard: true }))
+      const allFibers = yield* Ref.get(fibers)
+      yield* Effect.forEach(allFibers, Fiber.interrupt, { discard: true })
 
       // Shutdown pub/sub
-      yield* _(PubSub.shutdown(eventPubSub))
+      yield* PubSub.shutdown(eventPubSub)
     })
 
     return {
@@ -212,28 +212,28 @@ export const make = (
 export const makeWithDeps = (
   config: StateSyncConfig = { eventBufferSize: 1000 }
 ): Effect.Effect<StateSync> =>
-  Effect.gen(function* (_) {
-    const batcher = yield* _(
+  Effect.gen(function* () {
+    const batcher = yield* 
       Effect.serviceOption(EventBatcher).pipe(
         Effect.flatMap(option =>
           option._tag === "Some"
             ? Effect.succeed(option.value)
-            : Effect.fail(new Error("EventBatcher not provided"))
+            : Effect.fail(new Error("EventBatcher not provided")
         )
       )
     )
 
-    const subManager = yield* _(
+    const subManager = yield* 
       Effect.serviceOption(SubscriptionManager).pipe(
         Effect.flatMap(option =>
           option._tag === "Some"
             ? Effect.succeed(option.value)
-            : Effect.fail(new Error("SubscriptionManager not provided"))
+            : Effect.fail(new Error("SubscriptionManager not provided")
         )
       )
     )
 
-    return yield* _(make(config, batcher, subManager))
+    return yield* make(config, batcher, subManager)
   })
 
 /**

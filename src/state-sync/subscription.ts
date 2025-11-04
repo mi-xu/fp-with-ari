@@ -58,14 +58,14 @@ export type SubscriptionManager = {
 // ============================================================================
 
 const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager> =>
-  Effect.gen(function* (_) {
-    const index = yield* _(Ref.make<WorkspaceIndex>(new Map()))
+  Effect.gen(function* () {
+    const index = yield* Ref.make<WorkspaceIndex>(new Map())
 
     /**
      * Rebuild the entire workspace index from scratch
      */
     const rebuildIndex = (state: State): Effect.Effect<void> =>
-      Effect.gen(function* (_) {
+      Effect.gen(function* () {
         const newIndex = new Map<WorkspaceId, ReadonlySet<EntityId>>()
 
         // Find all workspace entities
@@ -77,7 +77,7 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager> =>
           newIndex.set(workspaceId as WorkspaceId, reachable)
         }
 
-        yield* _(Ref.set(index, newIndex))
+        yield* Ref.set(index, newIndex)
       })
 
     /**
@@ -88,9 +88,9 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager> =>
      * add/remove entities.
      */
     const updateIndex = (state: State, event: Event): Effect.Effect<void> =>
-      Effect.gen(function* (_) {
+      Effect.gen(function* () {
         const affectedEntities = getAffectedEntities(event)
-        const currentIndex = yield* _(Ref.get(index))
+        const currentIndex = yield* Ref.get(index)
 
         // Find which workspaces are affected
         const affectedWorkspaces = new Set<WorkspaceId>()
@@ -130,7 +130,7 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager> =>
             }
           }
 
-          yield* _(Ref.set(index, newIndex))
+          yield* Ref.set(index, newIndex)
         }
       })
 
@@ -142,13 +142,13 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager> =>
       subscription: Subscription,
       state: State
     ): Effect.Effect<boolean> =>
-      Effect.gen(function* (_) {
+      Effect.gen(function* () {
         // Check user ID
         if (event.userId !== subscription.userId) {
           return false
         }
 
-        const currentIndex = yield* _(Ref.get(index))
+        const currentIndex = yield* Ref.get(index)
         const affectedEntities = event.affectsEntities
 
         // Check if any affected entity is an "always include" type

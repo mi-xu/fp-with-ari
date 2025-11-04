@@ -50,25 +50,21 @@ export type EventBatcher = {
 // ============================================================================
 
 const makeBatcher = (config: BatcherConfig): Effect.Effect<EventBatcher> =>
-  Effect.gen(function* (_) {
+  Effect.gen(function* () {
     // Pending updates map: entityId -> accumulated changes
-    const pending = yield* _(
-      Ref.make(new Map<EntityId, Record<string, any>>())
-    )
+    const pending = yield* Ref.make(new Map<EntityId, Record<string, any>>())
 
     // Queue for emitting batched events
-    const eventQueue = yield* _(Queue.unbounded<AtomicEvent>())
+    const eventQueue = yield* Queue.unbounded<AtomicEvent>()
 
     // Running flag
-    const running = yield* _(Ref.make(true))
+    const running = yield* Ref.make(true)
 
     /**
      * Flush all pending updates to the event queue
      */
-    const flush = Effect.gen(function* (_) {
-      const updates = yield* _(
-        Ref.getAndSet(pending, new Map<EntityId, Record<string, any>>())
-      )
+    const flush = Effect.gen(function* () {
+      const updates = yield* Ref.getAndSet(pending, new Map<EntityId, Record<string, any>>())
 
       const events: AtomicEvent[] = []
 
@@ -83,11 +79,9 @@ const makeBatcher = (config: BatcherConfig): Effect.Effect<EventBatcher> =>
       }
 
       // Enqueue all events
-      yield* _(
-        Effect.forEach(events, event => Queue.offer(eventQueue, event), {
-          discard: true,
-        })
-      )
+      yield* Effect.forEach(events, event => Queue.offer(eventQueue, event), {
+        discard: true,
+      })
 
       return events
     })
@@ -110,30 +104,29 @@ const makeBatcher = (config: BatcherConfig): Effect.Effect<EventBatcher> =>
     /**
      * Background fiber that flushes at intervals
      */
-    const flusher = Effect.gen(function* (_) {
-      yield* _(
-        flush,
+    const flusher = Effect.gen(function* () {
+      yield* flush.pipe(
         Effect.repeat(
           Schedule.spaced(Duration.millis(config.windowMs)).pipe(
             Schedule.whileInput(() =>
-              Effect.gen(function* (_) {
-                return yield* _(Ref.get(running))
+              Effect.gen(function* () {
+                return yield* Ref.get(running)
               })
             )
           )
         ),
         Effect.ensuring(
-          Effect.gen(function* (_) {
+          Effect.gen(function* () {
             // Flush one last time before shutting down
-            yield* _(flush)
-            yield* _(Queue.shutdown(eventQueue))
+            yield* flush
+            yield* Queue.shutdown(eventQueue)
           })
         )
       )
     })
 
     // Start the background flusher
-    const flusherFiber = yield* _(Effect.fork(flusher))
+    const flusherFiber = yield* Effect.fork(flusher)
 
     /**
      * Get stream of batched events
@@ -143,9 +136,9 @@ const makeBatcher = (config: BatcherConfig): Effect.Effect<EventBatcher> =>
     /**
      * Shutdown the batcher
      */
-    const shutdown = Effect.gen(function* (_) {
-      yield* _(Ref.set(running, false))
-      yield* _(Effect.sleep(Duration.millis(config.windowMs * 2))) // Wait for final flush
+    const shutdown = Effect.gen(function* () {
+      yield* Ref.set(running, false)
+      yield* Effect.sleep(Duration.millis(config.windowMs * 2)) // Wait for final flush
     })
 
     return {
