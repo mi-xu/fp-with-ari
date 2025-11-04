@@ -1,0 +1,16 @@
+{
+  "name": "fp-with-ari",
+  "version": "1.0.0",
+  "module": "main.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run main.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "effect": "^3.18.4"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.1"
+  }
+}
