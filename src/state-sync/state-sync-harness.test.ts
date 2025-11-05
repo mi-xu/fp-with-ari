@@ -403,19 +403,24 @@ const generateRandomMutation = (
       }
     }
 
-    // NOTE: Tab deletion is disabled due to a bug in subscription filtering
-    // where EntityDeleted events don't pass through alwaysInclude filtering.
-    // The entity is looked up in state AFTER it's been deleted, so the filter
-    // can't determine the entity type and the event gets dropped.
-    // This bug was discovered by this test harness. See subscription.ts:156
+    // 15% - Delete a tab
+    if (mutationType >= 6 && mutationType < 7.5 && context.tabIds.length > 10) {
+      const tabIndex = Math.floor(Math.random() * context.tabIds.length)
+      const tabId = context.tabIds[tabIndex]
 
-    // DISABLED: Delete a tab
-    // if (mutationType >= 6 && mutationType < 6.5 && context.tabIds.length > 20) {
-    //   ...deletion logic...
-    // }
+      if (state.entities.has(tabId)) {
+        // Remove from context
+        context.tabIds.splice(tabIndex, 1)
 
-    // 25% - Update folder (increased to compensate for reduced deletions)
-    if (mutationType >= 6.5 && mutationType < 9 && context.folderIds.length > 0) {
+        return {
+          type: "EntityDeleted",
+          entityId: tabId,
+        }
+      }
+    }
+
+    // 15% - Update folder
+    if (mutationType >= 7.5 && mutationType < 9 && context.folderIds.length > 0) {
       const folderIndex = Math.floor(Math.random() * context.folderIds.length)
       const folderId = context.folderIds[folderIndex]
 
@@ -429,7 +434,7 @@ const generateRandomMutation = (
       }
     }
 
-    // 10% - Tag operation (untag disabled due to EdgeRemoved filtering bug)
+    // 10% - Tag/untag operation
     if (mutationType >= 9 && context.tabIds.length > 0 && context.tagIds.length > 0) {
       const tabIndex = Math.floor(Math.random() * context.tabIds.length)
       const tabId = context.tabIds[tabIndex]
@@ -440,9 +445,13 @@ const generateRandomMutation = (
         const edgeId = makeEdgeId(tabId, tagId, "tagged_with")
         const edgeExists = state.edges.has(edgeId)
 
-        // NOTE: EdgeRemoved has the same filtering bug as EntityDeleted
-        // Only add tags, don't remove them
-        if (!edgeExists) {
+        if (edgeExists) {
+          // Remove tag
+          return {
+            type: "EdgeRemoved",
+            edgeId,
+          }
+        } else {
           // Add tag
           return {
             type: "EdgeCreated",
@@ -539,11 +548,6 @@ const makeClientSimulator = (): Effect.Effect<ClientSimulator, never, never> =>
         Effect.scoped(
           Effect.gen(function* () {
             // Subscribe to all events from the server user
-            // NOTE: Known limitation - This test may not catch all sync issues because:
-            // 1. EntityDeleted events have a bug where they don't pass through alwaysInclude
-            //    filtering (entity is already removed from state when filter runs)
-            // 2. We include all entity types to maximize coverage, but deletions may still
-            //    be missed depending on timing
             const subscription: Subscription = {
               userId: serverUserId,
               // Include all entity types used in the test

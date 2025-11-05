@@ -237,6 +237,8 @@ export type EnvelopedEvent = {
   readonly userId: UserId
   readonly timestamp: Date
   readonly affectsEntities: ReadonlyArray<EntityId>
+  // Entity type information captured before deletion for filtering
+  readonly entityTypesByAffectedId: ReadonlyMap<EntityId, EntityType>
 }
 
 // ============================================================================

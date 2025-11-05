@@ -117,17 +117,71 @@ export const make = (
         // Get sequence number
         const sequenceNumber = yield* getNextSequenceNumber()
 
-        // Create enveloped event
+        // Get current state BEFORE applying event
+        const currentState = yield* Ref.get(state)
+
+        // Capture entity types for affected entities
+        // This is critical for subscription filtering to work correctly with deletions
+        let affectedEntityIds = getAffectedEntities(event)
+        const entityTypesByAffectedId = new Map<EntityId, EntityType>()
+
+        // Special handling for EdgeRemoved: lookup the edge to get affected entities
+        if (event.type === "EdgeRemoved") {
+          const edge = currentState.edges.get(event.edgeId)
+          if (edge) {
+            affectedEntityIds = [edge.from, edge.to]
+          }
+        }
+        if (event.type === "Transaction") {
+          // Rebuild affected entities for transactions containing EdgeRemoved
+          const allAffected: EntityId[] = []
+          for (const op of event.operations) {
+            if (op.type === "EdgeRemoved") {
+              const edge = currentState.edges.get(op.edgeId)
+              if (edge) {
+                allAffected.push(edge.from, edge.to)
+              }
+            } else {
+              allAffected.push(...getAffectedEntities({ type: op.type, ...op } as Event))
+            }
+          }
+          affectedEntityIds = allAffected
+        }
+
+        // Helper to extract entity type from event or state
+        const captureEntityType = (entityId: EntityId, evt: Event): EntityType | undefined => {
+          // First check if the event itself contains entity type info (for creates)
+          if (evt.type === "EntityCreated" && evt.entityId === entityId) {
+            return evt.entityType
+          }
+          if (evt.type === "Transaction") {
+            for (const op of evt.operations) {
+              if (op.type === "EntityCreated" && op.entityId === entityId) {
+                return op.entityType
+              }
+            }
+          }
+          // Otherwise look up in current state (for updates/deletes)
+          const entity = currentState.entities.get(entityId)
+          return entity?.type
+        }
+
+        for (const entityId of affectedEntityIds) {
+          const entityType = captureEntityType(entityId, event)
+          if (entityType) {
+            entityTypesByAffectedId.set(entityId, entityType)
+          }
+        }
+
+        // Create enveloped event with entity type metadata
         const enveloped: EnvelopedEvent = {
           event,
           sequenceNumber,
           userId,
           timestamp: new Date(),
-          affectsEntities: getAffectedEntities(event),
+          affectsEntities: affectedEntityIds,
+          entityTypesByAffectedId,
         }
-
-        // Get current state for subscription manager
-        const currentState = yield* Ref.get(state)
 
         // Apply event to state
         const newState = applyEvent(currentState, event)

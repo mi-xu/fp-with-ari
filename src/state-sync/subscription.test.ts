@@ -6,9 +6,12 @@ import {
   WorkspaceId,
   SequenceNumber,
   makeEdgeId,
+  getAffectedEntities,
   type Subscription,
   type EnvelopedEvent,
   type Event,
+  type State,
+  type EntityType,
   emptyState,
 } from "./types"
 import { applyEvent } from "./state"
@@ -18,22 +21,54 @@ import { make as makeSubscriptionManager } from "./subscription"
  * Tests for subscription filtering and workspace subgraph tracking
  */
 
+// Helper to create test EnvelopedEvent with proper metadata
+const makeTestEvent = (event: Event, userId: UserId, state: State = emptyState): EnvelopedEvent => {
+  let affectedEntityIds = getAffectedEntities(event)
+  const entityTypesByAffectedId = new Map<EntityId, EntityType>()
+
+  // Special handling for EdgeRemoved: lookup the edge to get affected entities
+  if (event.type === "EdgeRemoved") {
+    const edge = state.edges.get(event.edgeId)
+    if (edge) {
+      affectedEntityIds = [edge.from, edge.to]
+    }
+  }
+
+  // Capture entity types from event or state
+  for (const entityId of affectedEntityIds) {
+    if (event.type === "EntityCreated" && event.entityId === entityId) {
+      entityTypesByAffectedId.set(entityId, event.entityType)
+    } else {
+      const entity = state.entities.get(entityId)
+      if (entity) {
+        entityTypesByAffectedId.set(entityId, entity.type)
+      }
+    }
+  }
+
+  return {
+    event,
+    sequenceNumber: SequenceNumber(1),
+    userId,
+    timestamp: new Date(),
+    affectsEntities: affectedEntityIds,
+    entityTypesByAffectedId,
+  }
+}
+
 describe("Subscription Filtering", () => {
   test("filters by user ID", async () => {
     const manager = await Effect.runPromise(makeSubscriptionManager())
 
-    const event: EnvelopedEvent = {
-      event: {
+    const event = makeTestEvent(
+      {
         type: "EntityCreated",
         entityId: EntityId("tab-1"),
         entityType: "tab",
         data: {},
       },
-      sequenceNumber: SequenceNumber(1),
-      userId: UserId("user-1"),
-      timestamp: new Date(),
-      affectsEntities: [EntityId("tab-1")],
-    }
+      UserId("user-1")
+    )
 
     const subscription: Subscription = {
       userId: UserId("user-2"), // Different user
@@ -57,17 +92,15 @@ describe("Subscription Filtering", () => {
       data: {},
     })
 
-    const event: EnvelopedEvent = {
-      event: {
+    const event = makeTestEvent(
+      {
         type: "EntityUpdated",
         entityId: EntityId("tab-1"),
         changes: { title: "Updated" },
       },
-      sequenceNumber: SequenceNumber(1),
-      userId: UserId("user-1"),
-      timestamp: new Date(),
-      affectsEntities: [EntityId("tab-1")],
-    }
+      UserId("user-1"),
+      state
+    )
 
     const subscription: Subscription = {
       userId: UserId("user-1"),

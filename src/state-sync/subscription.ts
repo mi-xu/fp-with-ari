@@ -152,9 +152,11 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager, never, ne
         const affectedEntities = event.affectsEntities
 
         // Check if any affected entity is an "always include" type
+        // Use entity type metadata from the event (captured before deletion)
+        // instead of looking up in current state
         for (const entityId of affectedEntities) {
-          const entity = state.entities.get(entityId)
-          if (entity && subscription.alwaysInclude.entityTypes.includes(entity.type)) {
+          const entityType = event.entityTypesByAffectedId.get(entityId)
+          if (entityType && subscription.alwaysInclude.entityTypes.includes(entityType)) {
             return true
           }
         }
