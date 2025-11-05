@@ -120,19 +120,16 @@ export const make = (
         // Get current state BEFORE applying event
         const currentState = yield* Ref.get(state)
 
-        // Capture entity types for affected entities
-        // This is critical for subscription filtering to work correctly with deletions
+        // Get affected entities
+        // For EdgeRemoved, need to look up the edge to get from/to entities
         let affectedEntityIds = getAffectedEntities(event)
-        const entityTypesByAffectedId = new Map<EntityId, EntityType>()
 
-        // Special handling for EdgeRemoved: lookup the edge to get affected entities
         if (event.type === "EdgeRemoved") {
           const edge = currentState.edges.get(event.edgeId)
           if (edge) {
             affectedEntityIds = [edge.from, edge.to]
           }
-        }
-        if (event.type === "Transaction") {
+        } else if (event.type === "Transaction") {
           // Rebuild affected entities for transactions containing EdgeRemoved
           const allAffected: EntityId[] = []
           for (const op of event.operations) {
@@ -148,39 +145,13 @@ export const make = (
           affectedEntityIds = allAffected
         }
 
-        // Helper to extract entity type from event or state
-        const captureEntityType = (entityId: EntityId, evt: Event): EntityType | undefined => {
-          // First check if the event itself contains entity type info (for creates)
-          if (evt.type === "EntityCreated" && evt.entityId === entityId) {
-            return evt.entityType
-          }
-          if (evt.type === "Transaction") {
-            for (const op of evt.operations) {
-              if (op.type === "EntityCreated" && op.entityId === entityId) {
-                return op.entityType
-              }
-            }
-          }
-          // Otherwise look up in current state (for updates/deletes)
-          const entity = currentState.entities.get(entityId)
-          return entity?.type
-        }
-
-        for (const entityId of affectedEntityIds) {
-          const entityType = captureEntityType(entityId, event)
-          if (entityType) {
-            entityTypesByAffectedId.set(entityId, entityType)
-          }
-        }
-
-        // Create enveloped event with entity type metadata
+        // Create enveloped event
         const enveloped: EnvelopedEvent = {
           event,
           sequenceNumber,
           userId,
           timestamp: new Date(),
           affectsEntities: affectedEntityIds,
-          entityTypesByAffectedId,
         }
 
         // Apply event to state
