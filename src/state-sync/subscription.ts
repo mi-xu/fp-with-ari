@@ -148,6 +148,22 @@ const makeSubscriptionManager = (): Effect.Effect<SubscriptionManager, never, ne
           return false
         }
 
+        // Simpler approach for deletion events: send all deletions to matching userId
+        // This trades efficiency (some wasted events) for simplicity (no metadata tracking)
+        const isDeletionEvent = (evt: Event): boolean => {
+          if (evt.type === "EntityDeleted" || evt.type === "EdgeRemoved") {
+            return true
+          }
+          if (evt.type === "Transaction") {
+            return evt.operations.some(op => op.type === "EntityDeleted" || op.type === "EdgeRemoved")
+          }
+          return false
+        }
+
+        if (isDeletionEvent(event.event)) {
+          return true
+        }
+
         const currentIndex = yield* Ref.get(index)
         const affectedEntities = event.affectsEntities
 

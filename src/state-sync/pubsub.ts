@@ -117,17 +117,42 @@ export const make = (
         // Get sequence number
         const sequenceNumber = yield* getNextSequenceNumber()
 
+        // Get current state BEFORE applying event
+        const currentState = yield* Ref.get(state)
+
+        // Get affected entities
+        // For EdgeRemoved, need to look up the edge to get from/to entities
+        let affectedEntityIds = getAffectedEntities(event)
+
+        if (event.type === "EdgeRemoved") {
+          const edge = currentState.edges.get(event.edgeId)
+          if (edge) {
+            affectedEntityIds = [edge.from, edge.to]
+          }
+        } else if (event.type === "Transaction") {
+          // Rebuild affected entities for transactions containing EdgeRemoved
+          const allAffected: EntityId[] = []
+          for (const op of event.operations) {
+            if (op.type === "EdgeRemoved") {
+              const edge = currentState.edges.get(op.edgeId)
+              if (edge) {
+                allAffected.push(edge.from, edge.to)
+              }
+            } else {
+              allAffected.push(...getAffectedEntities({ type: op.type, ...op } as Event))
+            }
+          }
+          affectedEntityIds = allAffected
+        }
+
         // Create enveloped event
         const enveloped: EnvelopedEvent = {
           event,
           sequenceNumber,
           userId,
           timestamp: new Date(),
-          affectsEntities: getAffectedEntities(event),
+          affectsEntities: affectedEntityIds,
         }
-
-        // Get current state for subscription manager
-        const currentState = yield* Ref.get(state)
 
         // Apply event to state
         const newState = applyEvent(currentState, event)

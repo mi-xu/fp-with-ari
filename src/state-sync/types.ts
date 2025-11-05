@@ -257,6 +257,8 @@ export type Subscription = {
 
 /**
  * Extract all entity IDs that an event affects
+ * Note: EdgeRemoved only has edgeId, so we can't determine affected entities
+ * without state lookup. Returns empty array for EdgeRemoved.
  */
 export const getAffectedEntities = (event: Event): EntityId[] => {
   switch (event.type) {
@@ -266,8 +268,11 @@ export const getAffectedEntities = (event: Event): EntityId[] => {
       return [event.entityId]
 
     case "EdgeCreated":
-    case "EdgeRemoved":
       return [event.from, event.to]
+
+    case "EdgeRemoved":
+      // EdgeRemoved only has edgeId, need state lookup to get from/to
+      return []
 
     case "Transaction":
       return event.operations.flatMap(getAffectedEntities)
